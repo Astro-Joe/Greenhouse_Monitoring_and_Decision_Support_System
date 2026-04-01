@@ -6,6 +6,10 @@
 // #include <SD.h>
 #include <Keypad.h>
 
+
+unsigned long startTime;
+unsigned long elapsedTime;
+
 // 8x8 Micro SD Icon
 #define sd_hollow_width 8
 #define sd_hollow_height 7
@@ -106,9 +110,50 @@ void module_check() {
   }
 }
 
+//-------Periodic Data Logging--------
+void PDLARS() {
+  DateTime now = rtc.now();
+  static char date[11];
+  sprintf(date, "%02d-%s", now.day(), monthsOftheYear[now.month() - 1]);
+  u8g2.drawStr(0, 7, date);
+  if (!sd.begin(SPI_CONFIG)) {
+    u8g2.drawXBM(114, 0, sd_hollow_width, sd_hollow_height, sd_alert);
+    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);  
+  } else {
+    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);
+  }
+  u8g2.sendBuffer();
+
+  char dateFull[12];
+  sprintf(dateFull, "%02d/%02d/%04d", now.day(), now.month(), now.year());
+
+  char timeFull[15];
+  sprintf(timeFull, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
+  
+
+  String dataString = String(dateFull) + "," + String(timeFull) + "," + " " + "," + " ";
+
+  if (dataFile.open(filename, O_RDWR | O_AT_END)) {
+    dataFile.println(dataString);
+    delay(100);
+    Serial.println("---------------------------------");
+    Serial.println("Data succefully written");
+    dataFile.sync();
+    dataFile.close();
+    Serial.println("File succefully closed");
+  } else {
+    Serial.println("--------------------------");
+    Serial.println("Data was not written");
+  }
+  Serial.println("----------------------------");
+  Serial.println(timeFull);
+
+  startTime = millis();
+}
 
 
 void setup() {
+  startTime = millis();
   u8g2.begin();
   u8g2.setFont(u8g2_font_profont11_tr);
   
@@ -119,7 +164,6 @@ void setup() {
   pinMode(SD_CS, OUTPUT);
   SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
   Serial.println("Initializing SD card via SdFat...");
-  
   
 
   //---FIRST PAGE DISPLAY---
@@ -134,7 +178,6 @@ void setup() {
   delay(5000);
   
   module_check();
-
 
   if (dataFile.open(filename, O_RDWR | O_CREAT | O_AT_END)) {
     Serial.println("---------------------------------");
@@ -157,69 +200,47 @@ void setup() {
     sd.errorPrint(&Serial); // Prints WHY the file open failed
   }
 
+  u8g2.drawFrame(0, 8, 128, 64);
+  PDLARS();
 }
 
 
 
 void loop() {
 
-  u8g2.drawFrame(0, 8, 128, 64);
-
-
   char key_press = keypad.getKey();
-
   if (key_press) {
     Serial.print("---------------");
     Serial.print(key_press);
     Serial.print("---------------");
     Serial.println();
   }
+
+  // u8g2.setFont(u8g2_font_profont11_tr);
+  // u8g2.drawFrame(0, 8, 128, 64);
   
-  DateTime now = rtc.now();
+  // DateTime now = rtc.now();
 
-  u8g2.setFont(u8g2_font_profont11_tr);
-
-  static char date[11];
-  sprintf(date, "%02d-%s", now.day(), monthsOftheYear[now.month() - 1]);
-  u8g2.drawStr(0, 7, date);
-  if (!sd.begin(SPI_CONFIG)) {
-    u8g2.drawXBM(114, 0, sd_hollow_width, sd_hollow_height, sd_alert);
-    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);  
-  } else {
-    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);
+  elapsedTime = millis() - startTime;
+  if (elapsedTime >= 60000) {   
+    PDLARS();    
   }
-  u8g2.sendBuffer();
+}
 
-
-  char dateFull[12];
-  sprintf(dateFull, "%02d/%02d/%04d", now.day(), now.month(), now.year());
-
-  char timeFull[15];
-  sprintf(timeFull, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
   
-
-  String dataString = String(dateFull) + "," + String(timeFull) + "," + " " + "," + " ";
- 
-  if (dataFile.open(filename, O_RDWR | O_AT_END)) {
-    dataFile.println(dataString);
-    delay(100);
-    Serial.println("---------------------------------");
-    Serial.println("Data succefully written");
-    dataFile.sync();
-    dataFile.close();
-    Serial.println("File succefully closed");
-  } else {
-    Serial.println("--------------------------");
-    Serial.println("Data was not written");
-  }
-  Serial.println("----------------------------");
-  Serial.println(timeFull);
-
-  delay(60000);
-
-  }
-
-   // u8g2.setFont(u8g2_font_profont11_tr);
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  // u8g2.setFont(u8g2_font_profont11_tr);
   // u8g2.clearBuffer();
   // u8g2.drawStr(0,7, "Helloygj,");
   // u8g2.drawStr(0,18, "It's ASTROJOE!");
