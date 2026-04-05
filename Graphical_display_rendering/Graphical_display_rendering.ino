@@ -59,6 +59,20 @@ unsigned char column_pins[columns] = {6, 9, 17, 18};
 Keypad keypad = Keypad(makeKeymap(keys), row_pins, column_pins, rows, columns);
 
 
+enum ScreenState {
+  PROJECT_DISPLAY, //Showing the title of the projects and people involved.
+  INITIALIZATION_SCREEN, //Startup initialization of all required components.
+  MAIN_MENU, //Showing the options to access other screens.
+  ATMOSPHERIC_DATA, // Air temp, Relative humidity, Ambbient light, CO2, atmospheric pressure. 
+  SOIL_DATA, // Soil temp, Soil moisture, soil pH
+  DECISION_SUPPORT, // System recommendations and alerts 
+  SYSTEM_STATUS, // SD card logging, Wi-Fi/4G connection 
+  SETTING // Other system settings like, resetting the time, manually fixing sensor thresholds etc.
+};
+
+ScreenState currentState = PROJECT_DISPLAY;
+
+
 //---Checking modules---
 void module_check() {
 
@@ -158,7 +172,7 @@ void setup() {
   u8g2.setFont(u8g2_font_profont11_tr);
   
   Wire.begin(19, 38);
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   pinMode(check_LED, OUTPUT);
   pinMode(SD_CS, OUTPUT);
