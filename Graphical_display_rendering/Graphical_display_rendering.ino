@@ -6,7 +6,6 @@
 // #include <SD.h>
 #include <Keypad.h>
 
-
 unsigned long startTime;
 unsigned long elapsedTime;
 
@@ -60,6 +59,7 @@ Keypad keypad = Keypad(makeKeymap(keys), row_pins, column_pins, rows, columns);
 
 
 enum ScreenState {
+  DEFAULT_STATE,
   PROJECT_DISPLAY, //Showing the title of the projects and people involved.
   INITIALIZATION_SCREEN, //Startup initialization of all required components.
   MAIN_MENU, //Showing the options to access other screens.
@@ -70,7 +70,25 @@ enum ScreenState {
   SETTING // Other system settings like, resetting the time, manually fixing sensor thresholds etc.
 };
 
-ScreenState currentState = PROJECT_DISPLAY;
+
+//---FIRST PAGE DISPLAY---
+void projectDisplay () {
+ 
+  u8g2.clearBuffer();
+  delay(600);
+  u8g2.drawStr(0, 7, "GREENHOUSE MONITORING");
+  u8g2.drawStr(0, 18, " AND DECISION SUPPORT ");
+  u8g2.drawStr(0, 29, "        SYSTEM        ");
+  u8g2.drawStr(0, 40, "       BY: ASTRO      ");
+  u8g2.drawStr(0, 51, "            &         ");
+  u8g2.drawStr(0, 62, "           AYO        ");
+  u8g2.sendBuffer();
+  delay(5000);
+  Serial.println(">> Project display successfully ran!");
+  // u8g2.clearBuffer();
+  u8g2.sendBuffer();
+  
+}
 
 
 //---Checking modules---
@@ -81,13 +99,14 @@ void module_check() {
     u8g2.clearBuffer();
     u8g2.drawStr(0, 16, "Couldn't find RTC");
     u8g2.sendBuffer();
+    Serial.println(">> Couldn't find RTC");
     for (unsigned char i = 0; i < 3; i++) {
       digitalWrite(check_LED, HIGH);
       delay(500);
       digitalWrite(check_LED, LOW);
       delay(500);
     }
-    delay(1000);
+    delay(300);
   } 
   // else if (rtc.lostPower()) {
   //   u8g2.clearBuffer();
@@ -103,7 +122,8 @@ void module_check() {
     u8g2.clearBuffer();
     u8g2.drawStr(0, 16, "RTC Init...");
     u8g2.sendBuffer();
-    delay(1000);
+    Serial.println(">> RTC Initialized successfully");
+    // delay(300);
   }
 
   //---Checking SD card module---
@@ -111,21 +131,26 @@ void module_check() {
     u8g2.drawStr(0, 25, "Couldn't find SD");
     u8g2.drawStr(0, 34, "module...");
     u8g2.sendBuffer();
-    delay(1000);
-    u8g2.clearBuffer();
-    u8g2.sendBuffer();
+    Serial.println(">> Couldn't find SD module");
+    // delay(300);
+    // u8g2.clearBuffer();
+    // u8g2.sendBuffer();
   } 
   else {
     u8g2.drawStr(0, 25, "SD module Init...");
     u8g2.sendBuffer();
-    delay(1000);
-    u8g2.clearBuffer();
-    u8g2.sendBuffer();
+    Serial.println(">> SD module Initialized successfully");
+    // delay(300);
+    // u8g2.clearBuffer();
+    // u8g2.sendBuffer();
   }
 }
 
-//-------Periodic Data Logging--------
-void PDLARS() {
+
+//-----Status Bar----
+void status_bar() {
+  u8g2.clearBuffer();
+  u8g2.drawFrame(0, 8, 128, 64);
   DateTime now = rtc.now();
   static char date[11];
   sprintf(date, "%02d-%s", now.day(), monthsOftheYear[now.month() - 1]);
@@ -137,7 +162,13 @@ void PDLARS() {
     u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);
   }
   u8g2.sendBuffer();
+  Serial.println(">> Status bar successfully updated.");
+}
 
+
+//-------Periodic Data Logging--------
+void PDL() {
+  DateTime now = rtc.now();
   char dateFull[12];
   sprintf(dateFull, "%02d/%02d/%04d", now.day(), now.month(), now.year());
 
@@ -150,20 +181,20 @@ void PDLARS() {
   if (dataFile.open(filename, O_RDWR | O_AT_END)) {
     dataFile.println(dataString);
     delay(100);
-    Serial.println("---------------------------------");
-    Serial.println("Data succefully written");
+    Serial.println(">> Data succefully written");
     dataFile.sync();
     dataFile.close();
-    Serial.println("File succefully closed");
+    Serial.println(">> File succefully closed");
   } else {
-    Serial.println("--------------------------");
-    Serial.println("Data was not written");
+    
+    Serial.println(">> Data was not written");
   }
   Serial.println("----------------------------");
   Serial.println(timeFull);
 
   startTime = millis();
 }
+
 
 
 void setup() {
@@ -177,25 +208,17 @@ void setup() {
   pinMode(check_LED, OUTPUT);
   pinMode(SD_CS, OUTPUT);
   SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-  Serial.println("Initializing SD card via SdFat...");
+  Serial.println(">> Initializing SD card via SdFat...");
   
+  projectDisplay();
 
-  //---FIRST PAGE DISPLAY---
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 7, "GREENHOUSE MONITORING");
-  u8g2.drawStr(0, 18, " AND DECISION SUPPORT ");
-  u8g2.drawStr(0, 29, "        SYSTEM        ");
-  u8g2.drawStr(0, 40, "       BY: ASTRO      ");
-  u8g2.drawStr(0, 51, "            &         ");
-  u8g2.drawStr(0, 62, "           AYO        ");
-  u8g2.sendBuffer();
-  delay(5000);
-  
   module_check();
 
-  if (dataFile.open(filename, O_RDWR | O_CREAT | O_AT_END)) {
-    Serial.println("---------------------------------");
-    Serial.println("SUCCESS: File is open and ready.");
+  status_bar();
+  
+  
+  if (dataFile.open(filename, O_RDWR | O_CREAT | O_AT_END)) { 
+    Serial.println(">> SUCCESS: File is open and ready.");
     
     // Optional: Write a header if the file is empty
     if (dataFile.fileSize() == 0) {
@@ -207,20 +230,30 @@ void setup() {
     
     dataFile.sync(); 
     dataFile.close(); // Always close after setup
-    Serial.println("SUCCESS: File synced and safely closed.");
-  } else {
-    Serial.println("---------------------------------");
-    Serial.println("FAILURE: Could not open file.");
+    Serial.println(">> SUCCESS: File synced and safely closed.");
+  } else { 
+    Serial.println(">> FAILURE: Could not open file.");
     sd.errorPrint(&Serial); // Prints WHY the file open failed
   }
 
-  u8g2.drawFrame(0, 8, 128, 64);
-  PDLARS();
+  PDL();
 }
 
 
 
 void loop() {
+
+  //-------For timing how long it took to run status_bar()------
+  // char time [15];
+  // startTime = millis();
+  // elapsedTime =  millis() - startTime;
+  // status_bar();
+  // sprintf(time, "%d", millis());
+  // Serial.println(time);
+  //------------------------------------------------------------
+
+
+  ScreenState currentState = DEFAULT_STATE;
 
   char key_press = keypad.getKey();
   if (key_press) {
@@ -230,14 +263,20 @@ void loop() {
     Serial.println();
   }
 
-  // u8g2.setFont(u8g2_font_profont11_tr);
-  // u8g2.drawFrame(0, 8, 128, 64);
-  
-  // DateTime now = rtc.now();
+  if (key_press == '0') {
+    currentState = PROJECT_DISPLAY;
+  }
+
+  switch (currentState) {
+    case PROJECT_DISPLAY:
+    projectDisplay();
+    break;
+  }
+
 
   elapsedTime = millis() - startTime;
   if (elapsedTime >= 60000) {   
-    PDLARS();    
+    PDL();    
   }
 }
 
