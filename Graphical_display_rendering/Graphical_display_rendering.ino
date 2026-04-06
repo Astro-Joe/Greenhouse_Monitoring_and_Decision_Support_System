@@ -8,6 +8,12 @@
 
 unsigned long startTime;
 unsigned long elapsedTime;
+bool condition_check;
+
+
+String code = "1601";
+String userInput = "";
+
 
 // 8x8 Micro SD Icon
 #define sd_hollow_width 8
@@ -49,8 +55,8 @@ const unsigned char columns = 4;
 char keys[rows][columns] = { // All ASCII characters
   {'1', '2', '3', 'A'},
   {'4', '5', '6', 'B'},
-  {'7', '8', '9', 'C'},
-  {'*', '0', '#', 'D'}
+  {'7', '8', '9', 'D'},
+  {'C', '0', 'E', 'F'}
 };
 
 unsigned char row_pins[rows] = {1, 2, 16, 5};
@@ -61,17 +67,19 @@ Keypad keypad = Keypad(makeKeymap(keys), row_pins, column_pins, rows, columns);
 enum ScreenState {
   DEFAULT_STATE,
   PROJECT_DISPLAY, //Showing the title of the projects and people involved.
-  INITIALIZATION_SCREEN, //Startup initialization of all required components.
+  // INITIALIZATION_SCREEN, //Startup initialization of all required components.
   MAIN_MENU, //Showing the options to access other screens.
   ATMOSPHERIC_DATA, // Air temp, Relative humidity, Ambbient light, CO2, atmospheric pressure. 
   SOIL_DATA, // Soil temp, Soil moisture, soil pH
   DECISION_SUPPORT, // System recommendations and alerts 
   SYSTEM_STATUS, // SD card logging, Wi-Fi/4G connection 
+  CODE, // Page to input special codes.
   SETTING // Other system settings like, resetting the time, manually fixing sensor thresholds etc.
 };
 
+ScreenState currentState = DEFAULT_STATE;
 
-//---FIRST PAGE DISPLAY---
+//---Displaying project title---
 void projectDisplay () {
  
   u8g2.clearBuffer();
@@ -84,12 +92,35 @@ void projectDisplay () {
   u8g2.drawStr(0, 62, "           AYO        ");
   u8g2.sendBuffer();
   delay(5000);
-  Serial.println(">> Project display successfully ran!");
-  // u8g2.clearBuffer();
-  u8g2.sendBuffer();
-  
+  Serial.println(">> Project display successfully ran!");  
 }
 
+
+//-----Status Bar----
+void status_bar() {
+  u8g2.clearBuffer();
+  u8g2.drawFrame(0, 8, 128, 64);
+  DateTime now = rtc.now();
+  static char date[11];
+  sprintf(date, "%02d-%s", now.day(), monthsOftheYear[now.month() - 1]);
+  u8g2.drawStr(0, 7, date);
+  if (!sd.begin(SPI_CONFIG)) {
+    u8g2.drawXBM(114, 0, sd_hollow_width, sd_hollow_height, sd_alert);
+    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);  
+  } else {
+    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);
+  }
+  // u8g2.sendBuffer();
+  Serial.println(">> Status bar successfully updated.");
+}
+
+
+//------Page for inputting special codes------
+void codeInputPage() {
+  status_bar();
+  u8g2.drawStr(2, 19, "Enter code: ");
+  u8g2.sendBuffer();
+}
 
 //---Checking modules---
 void module_check() {
@@ -147,23 +178,7 @@ void module_check() {
 }
 
 
-//-----Status Bar----
-void status_bar() {
-  u8g2.clearBuffer();
-  u8g2.drawFrame(0, 8, 128, 64);
-  DateTime now = rtc.now();
-  static char date[11];
-  sprintf(date, "%02d-%s", now.day(), monthsOftheYear[now.month() - 1]);
-  u8g2.drawStr(0, 7, date);
-  if (!sd.begin(SPI_CONFIG)) {
-    u8g2.drawXBM(114, 0, sd_hollow_width, sd_hollow_height, sd_alert);
-    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);  
-  } else {
-    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);
-  }
-  u8g2.sendBuffer();
-  Serial.println(">> Status bar successfully updated.");
-}
+
 
 
 //-------Periodic Data Logging--------
@@ -196,9 +211,81 @@ void PDL() {
 }
 
 
+//----Showing the options to access other screens-------
+void mainMenu (){
+
+}
+
+//---Special code to display the project display----
+void special_code() {
+
+  condition_check = true;
+  String userInput = "";
+  Serial.print(">> User Input: ");
+  Serial.println(userInput);
+
+
+  Serial.println(">> special_code function running");
+  while (condition_check) {
+    char key = keypad.getKey();
+    if (key) {
+      if (key == 'E') {
+        if (userInput == code){
+          Serial.println(">> Correct code!");
+          currentState = PROJECT_DISPLAY;
+          switch (currentState) {
+            case PROJECT_DISPLAY:
+              projectDisplay();
+              u8g2.sendBuffer();
+              status_bar();
+              u8g2.sendBuffer();
+              currentState = DEFAULT_STATE; // will later be changed to MAIN_MENU
+              condition_check = false;
+              break;
+          } 
+        }
+        else if (userInput != code) {
+          userInput = "";
+          Serial.println(">> Wrong code");
+          Serial.println(userInput);
+          currentState = MAIN_MENU;
+          switch (currentState) {
+            case MAIN_MENU:
+              status_bar();
+              u8g2.sendBuffer();
+              condition_check = false;
+              break;
+          }
+        }
+        continue;
+      }
+      // else {
+      //   userInput = "";
+      //   Serial.println(">> Wrong code");
+      // }
+    
+      
+      if (key == 'C') {
+        userInput = "";
+        Serial.println(">> Code input cleared");
+        Serial.print(">> User Input: ");
+        Serial.println(userInput);
+        continue;
+      }  
+
+    
+      userInput += key;
+      Serial.println(">> Appended input to userInput");
+      Serial.print(">> User Input: ");
+      Serial.println(userInput);
+    } 
+  }
+}
+
+
+
 
 void setup() {
-  startTime = millis();
   u8g2.begin();
   u8g2.setFont(u8g2_font_profont11_tr);
   
@@ -211,10 +298,12 @@ void setup() {
   Serial.println(">> Initializing SD card via SdFat...");
   
   projectDisplay();
+  u8g2.sendBuffer();
 
   module_check();
 
   status_bar();
+  u8g2.sendBuffer();
   
   
   if (dataFile.open(filename, O_RDWR | O_CREAT | O_AT_END)) { 
@@ -237,6 +326,7 @@ void setup() {
   }
 
   PDL();
+  startTime = millis();
 }
 
 
@@ -251,10 +341,6 @@ void loop() {
   // sprintf(time, "%d", millis());
   // Serial.println(time);
   //------------------------------------------------------------
-
-
-  ScreenState currentState = DEFAULT_STATE;
-
   char key_press = keypad.getKey();
   if (key_press) {
     Serial.print("---------------");
@@ -264,15 +350,17 @@ void loop() {
   }
 
   if (key_press == '0') {
-    currentState = PROJECT_DISPLAY;
+    currentState = CODE;
   }
 
   switch (currentState) {
-    case PROJECT_DISPLAY:
-    projectDisplay();
+    case CODE:
+    codeInputPage();
+    special_code();
     break;
   }
 
+  // special_code();
 
   elapsedTime = millis() - startTime;
   if (elapsedTime >= 60000) {   
