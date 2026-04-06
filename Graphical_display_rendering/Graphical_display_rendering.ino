@@ -232,38 +232,18 @@ void special_code() {
       if (key == 'E') {
         if (userInput == code){
           Serial.println(">> Correct code!");
+          condition_check = false;
           currentState = PROJECT_DISPLAY;
-          switch (currentState) {
-            case PROJECT_DISPLAY:
-              projectDisplay();
-              u8g2.sendBuffer();
-              status_bar();
-              u8g2.sendBuffer();
-              currentState = DEFAULT_STATE; // will later be changed to MAIN_MENU
-              condition_check = false;
-              break;
-          } 
         }
         else if (userInput != code) {
           userInput = "";
           Serial.println(">> Wrong code");
           Serial.println(userInput);
-          currentState = MAIN_MENU;
-          switch (currentState) {
-            case MAIN_MENU:
-              status_bar();
-              u8g2.sendBuffer();
-              condition_check = false;
-              break;
-          }
+          condition_check = false;
+          currentState = MAIN_MENU;          
         }
         continue;
-      }
-      // else {
-      //   userInput = "";
-      //   Serial.println(">> Wrong code");
-      // }
-    
+      }   
       
       if (key == 'C') {
         userInput = "";
@@ -272,7 +252,6 @@ void special_code() {
         Serial.println(userInput);
         continue;
       }  
-
     
       userInput += key;
       Serial.println(">> Appended input to userInput");
@@ -354,10 +333,22 @@ void loop() {
   }
 
   switch (currentState) {
+    case PROJECT_DISPLAY:
+      projectDisplay();
+      u8g2.sendBuffer();
+      status_bar();
+      u8g2.sendBuffer();
+      currentState = MAIN_MENU; 
+      break;
+    case MAIN_MENU:
+      status_bar();
+      u8g2.sendBuffer();
+      currentState = DEFAULT_STATE;
+      break;
     case CODE:
-    codeInputPage();
-    special_code();
-    break;
+      codeInputPage();
+      special_code();
+      break;
   }
 
   // special_code();
