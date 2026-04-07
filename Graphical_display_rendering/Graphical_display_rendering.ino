@@ -15,7 +15,7 @@ String code = "1601";
 String userInput = "";
 
 
-// 8x8 Micro SD Icon
+//======8x8 Micro SD Icon======
 #define sd_hollow_width 8
 #define sd_hollow_height 7
 static const unsigned char sd_hollow_bits[] PROGMEM = {
@@ -27,18 +27,18 @@ static const unsigned char sd_alert[] PROGMEM = {
 };
 
 
-//-------GLCD Setup------
+//======GLCD Setup======
 U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, 21, 20, 10, 7);  // E (clock), R/W (data), RS (Chip select), RST (reset)
 const unsigned char check_LED = 4;
 
 
-//---RTC Initialization---
+//======RTC Initialization======
 RTC_DS3231 rtc;
 char monthsOftheYear[12][4] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN",
                            "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
 
-//---SD Card Initialization---
+//======SD Card Initialization======
 #define SD_MOSI 11
 #define SD_MISO 13
 #define SD_CS 14
@@ -49,7 +49,7 @@ File32 dataFile; //Creating of File object for the SD card.
 #define SPI_CONFIG SdSpiConfig(SD_CS, SHARED_SPI, SD_SCK_MHZ(4))
 const char* filename = "SDATA.CSV";
 
-//---Keypad Initialization---
+//======Keypad Initialization======
 const unsigned char rows = 4;
 const unsigned char columns = 4;
 char keys[rows][columns] = { // All ASCII characters
@@ -67,62 +67,35 @@ Keypad keypad = Keypad(makeKeymap(keys), row_pins, column_pins, rows, columns);
 enum ScreenState {
   DEFAULT_STATE,
   PROJECT_DISPLAY, //Showing the title of the projects and people involved.
-  // INITIALIZATION_SCREEN, //Startup initialization of all required components.
   MAIN_MENU, //Showing the options to access other screens.
   ATMOSPHERIC_DATA, // Air temp, Relative humidity, Ambbient light, CO2, atmospheric pressure. 
   SOIL_DATA, // Soil temp, Soil moisture, soil pH
   DECISION_SUPPORT, // System recommendations and alerts 
   SYSTEM_STATUS, // SD card logging, Wi-Fi/4G connection 
+  SETTINGS, // Other system settings like, resetting the time, manually fixing sensor thresholds etc.
   CODE, // Page to input special codes.
-  SETTING // Other system settings like, resetting the time, manually fixing sensor thresholds etc.
-};
+}; 
 
 ScreenState currentState = DEFAULT_STATE;
 
-//---Displaying project title---
+//======Displaying project title======
 void projectDisplay () {
  
   u8g2.clearBuffer();
   delay(600);
-  u8g2.drawStr(0, 7, "GREENHOUSE MONITORING");
+  u8g2.drawStr(1, 7, "GREENHOUSE MONITORING");
   u8g2.drawStr(0, 18, " AND DECISION SUPPORT ");
   u8g2.drawStr(0, 29, "        SYSTEM        ");
-  u8g2.drawStr(0, 40, "       BY: ASTRO      ");
+  u8g2.drawStr(0, 40, "BY: ILEMOBAYO JOSEPH  ");
   u8g2.drawStr(0, 51, "            &         ");
-  u8g2.drawStr(0, 62, "           AYO        ");
+  u8g2.drawStr(0, 62, "    OLAYINKA AYOMIDE  ");
   u8g2.sendBuffer();
   delay(5000);
   Serial.println(">> Project display successfully ran!");  
 }
 
 
-//-----Status Bar----
-void status_bar() {
-  u8g2.clearBuffer();
-  u8g2.drawFrame(0, 8, 128, 64);
-  DateTime now = rtc.now();
-  static char date[11];
-  sprintf(date, "%02d-%s", now.day(), monthsOftheYear[now.month() - 1]);
-  u8g2.drawStr(0, 7, date);
-  if (!sd.begin(SPI_CONFIG)) {
-    u8g2.drawXBM(114, 0, sd_hollow_width, sd_hollow_height, sd_alert);
-    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);  
-  } else {
-    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);
-  }
-  // u8g2.sendBuffer();
-  Serial.println(">> Status bar successfully updated.");
-}
-
-
-//------Page for inputting special codes------
-void codeInputPage() {
-  status_bar();
-  u8g2.drawStr(2, 19, "Enter code: ");
-  u8g2.sendBuffer();
-}
-
-//---Checking modules---
+//======Checking modules======
 void module_check() {
 
   //---Checking RTC module---
@@ -178,10 +151,82 @@ void module_check() {
 }
 
 
+//======Status Bar======
+void status_bar() {
+  u8g2.clearBuffer();
+  u8g2.drawFrame(0, 8, 128, 64);
+  DateTime now = rtc.now();
+  static char date[11];
+  sprintf(date, "%02d-%s", now.day(), monthsOftheYear[now.month() - 1]);
+  u8g2.drawStr(0, 7, date);
+  if (!sd.begin(SPI_CONFIG)) {
+    u8g2.drawXBM(114, 0, sd_hollow_width, sd_hollow_height, sd_alert);
+    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);  
+  } else {
+    u8g2.drawXBM(120, 0, sd_hollow_width, sd_hollow_height, sd_hollow_bits);
+  }
+  // u8g2.sendBuffer();
+  Serial.println(">> Status bar successfully updated.");
+}
+
+
+//======Showing the options to access other screens======
+void mainMenu(){
+  status_bar();
+  u8g2.drawStr(36, 17, "MAIN MENU");
+  u8g2.drawStr(2, 28, "1. ATMOSPHERIC DATA");
+  u8g2.drawStr(2, 37, "2. SOIL DATA");
+  u8g2.drawStr(2, 46, "3. DECISION SUPPORT");
+  u8g2.drawStr(2, 55, "4. SYTEM STATUS");
+  u8g2.drawStr(2, 64, "5. SETTINGS");
+}
+
+
+//======Atmospheric Data Page======
+void atm_data() {
+  status_bar();
+  u8g2.drawStr(17, 17, "ATMOSPHERIC DATA");
+}
+
+
+//======Soil Data Page======
+void soil_data(){
+  status_bar();
+  u8g2.drawStr(36, 17, "SOIL DATA");
+}
+
+
+//=====Decision Support Page====
+void decsion_support() {
+  status_bar();
+  u8g2.drawStr(17, 17, "DECISION SUPPORT");
+}
 
 
 
-//-------Periodic Data Logging--------
+//======System Status Page======
+void sys_status() {
+  status_bar();
+  u8g2.drawStr(24, 17, "SYSTEM STATUS");
+}
+
+
+//=======System Settings Page=====
+void settings() {
+  status_bar();
+  u8g2.drawStr(43, 17, "SETTINGS");
+} 
+
+
+//======Page for inputting special codes======
+void codeInputPage() {
+  status_bar();
+  u8g2.drawStr(2, 17, "Enter code: ");
+  u8g2.sendBuffer();
+}
+
+
+//======Periodic Data Logging======
 void PDL() {
   DateTime now = rtc.now();
   char dateFull[12];
@@ -211,12 +256,7 @@ void PDL() {
 }
 
 
-//----Showing the options to access other screens-------
-void mainMenu (){
-
-}
-
-//---Special code to display the project display----
+//======Special code to display the project display======
 void special_code() {
 
   condition_check = true;
@@ -282,6 +322,7 @@ void setup() {
   module_check();
 
   status_bar();
+  mainMenu();
   u8g2.sendBuffer();
   
   
@@ -309,7 +350,6 @@ void setup() {
 }
 
 
-
 void loop() {
 
   //-------For timing how long it took to run status_bar()------
@@ -328,20 +368,63 @@ void loop() {
     Serial.println();
   }
 
-  if (key_press == '0') {
+  switch (key_press) {
+  case 'C':
     currentState = CODE;
+    break;
+  case '0':
+    currentState = MAIN_MENU;
+    break;
+  case '1':
+    currentState = ATMOSPHERIC_DATA;
+    break;
+  case '2':
+    currentState = SOIL_DATA;
+    break;
+  case '3':
+    currentState = DECISION_SUPPORT;
+    break;
+  case '4':
+    currentState = SYSTEM_STATUS;
+    break;
+  case '5': 
+    currentState = SETTINGS;
+    break;
   }
+
 
   switch (currentState) {
     case PROJECT_DISPLAY:
       projectDisplay();
       u8g2.sendBuffer();
-      status_bar();
-      u8g2.sendBuffer();
       currentState = MAIN_MENU; 
       break;
     case MAIN_MENU:
-      status_bar();
+      mainMenu();
+      u8g2.sendBuffer();
+      currentState = DEFAULT_STATE;
+      break;
+    case ATMOSPHERIC_DATA:
+      atm_data();
+      u8g2.sendBuffer();
+      currentState = DEFAULT_STATE;
+      break;
+    case SOIL_DATA:
+      soil_data();
+      u8g2.sendBuffer();
+      currentState = DEFAULT_STATE;
+      break;
+    case DECISION_SUPPORT:
+      decsion_support();
+      u8g2.sendBuffer();
+      break;
+    case SYSTEM_STATUS:
+      sys_status();
+      u8g2.sendBuffer();
+      currentState = DEFAULT_STATE;
+      break;
+    case SETTINGS:
+      settings();
       u8g2.sendBuffer();
       currentState = DEFAULT_STATE;
       break;
